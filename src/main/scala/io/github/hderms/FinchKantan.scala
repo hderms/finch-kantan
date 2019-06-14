@@ -1,22 +1,23 @@
 package io.github.hderms
 
+import java.io.CharArrayWriter
+import java.nio.CharBuffer
+
 import io.github.hderms.util.FinchEncoder
 
 object FinchKantan {
-  import java.io.StringWriter
   import java.nio.charset.Charset
 
+  import FinchEncoder.{csv, Csv}
   import com.twitter.io.Buf
-  import io.finch.{Application, Encode}
   import kantan.csv._
   import kantan.csv.ops._
 
   import scala.collection.TraversableOnce
   import scala.language.higherKinds
-  import FinchEncoder.{csv, Csv}
 
   implicit def encodeCsv[A, F[_] <: TraversableOnce[_]](
-      implicit e: HeaderEncoder[A]): FinchEncoder.Csv[A, F] =
+      implicit e: HeaderEncoder[A]): Csv[A, F] =
     csv((a: F[A], cs: Charset) => {
 
       produceBufferFromCsv(a, cs, rfc.withHeader)
@@ -34,10 +35,13 @@ object FinchKantan {
       a: F[A],
       cs: Charset,
       configuration: CsvConfiguration): Buf = {
-    val string = new StringWriter
 
-    string.writeCsv(a.asInstanceOf[TraversableOnce[A]], configuration)
+    val writer = new CharArrayWriter
 
-    Buf.ByteBuffer.Owned(cs.encode(string.toString))
+    writer.writeCsv(a.asInstanceOf[TraversableOnce[A]], configuration)
+
+    val buffer = CharBuffer.wrap(writer.toCharArray)
+
+    Buf.ByteBuffer.Owned(cs.encode(buffer))
   }
 }
